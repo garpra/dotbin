@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ICON_DIR="$HOME/.local/share/applications/icons"
+DESKTOP_DIR="$HOME/.local/share/applications"
+
+if command -v chromium >/dev/null; then
+  BROWSER="chromium"
+elif command -v google-chrome >/dev/null; then
+  BROWSER="google-chrome"
+else
+  echo "No supported browser found"
+  exit 1
+fi
+
+read -p "Name App : " APP_NAME
+read -p "URL App : " APP_URL
+
+if ! [[ "$APP_URL" =~ ^https?://[^/]+ ]]; then
+  echo "Invalid URL format"
+  exit 1
+fi
+
+if [[ ! $APP_URL =~ ^[a-zA-Z][a-zA-Z0-9+.-]*: ]]; then
+    APP_URL="https://$APP_URL"
+fi
+
+SAFE_NAME=$(echo "$APP_NAME" | tr -cd '[:alnum:]-_' | tr '[:upper:]' '[:lower:]')
+DOMAIN=$(echo "$APP_URL" | sed -E 's#^[a-zA-Z]+://([^/]+).*#\1#')
+FAVICON_URL="https://www.google.com/s2/favicons?domain=$DOMAIN&sz=128"
+ICON_PATH="$ICON_DIR/$SAFE_NAME.png"
+mkdir -p "$ICON_DIR"
+
+if ! curl -fsSL -o "$ICON_PATH" "$FAVICON_URL"; then
+  echo "Could not fetch favicon automatically. Enter PNG icon URL"
+  read -p "Icon URL : " CUSTOM_URL
+  if ! curl -fsSL -o "$ICON_PATH" "$CUSTOM_URL"; then
+    echo "Failed to download custom icon"
+    exit 1
+  fi
+fi
+
+DESKTOP_FILE="$DESKTOP_DIR/$SAFE_NAME.desktop"
+
+cat >"$DESKTOP_FILE" <<EOF
+[Desktop Entry]
+Version=1.0
+Name=$APP_NAME
+Comment=$APP_NAME
+Exec="$BROWSER" --app="$APP_URL"
+Terminal=false
+Type=Application
+Icon=$ICON_PATH
+StartupNotify=true
+EOF
+
+chmod +x "$DESKTOP_FILE"
+
+echo "Desktop entry created at: $DESKTOP_FILE"
