@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Gunakan mp4 untuk video game tanpa audio
+# Gunakan m4a untuk audio game tanpa video
+# Gunakan wav untuk audio mic
+
+DESKTOP_TRACK_NAME="Game"
+MIC_TRACK_NAME="Mic"
+
+if [[ "$#" -lt 1 ]]; then
+  echo "Error: Requires at least 1 argument"
+  echo "Usage: $0 <file_path>"
+  exit 1
+fi
+
+VIDEO_DIR=$1
+
+if [[ ! -f "$VIDEO_DIR" ]]; then
+  echo "Error: File not found -> $VIDEO_DIR"
+  exit 1
+fi
+
+FULLPATH=$(realpath "$VIDEO_DIR")
+BASENAME=$(basename "$FULLPATH" .mkv)
+OUTPUT_DIR="$HOME/Videos/Recordings"
+mkdir -p "$OUTPUT_DIR"
+
+VIDEO_GAME_OUTPUT="$OUTPUT_DIR/${BASENAME}_game-video.mp4"
+AUDIO_GAME_OUTPUT="$OUTPUT_DIR/${BASENAME}_game-audio.m4a"
+MIC_OUTPUT="$OUTPUT_DIR/${BASENAME}_mic.wav"
+
+ffmpeg -y -i "$FULLPATH" \
+  -map 0:v -c:v copy -an "$VIDEO_GAME_OUTPUT" \
+  -map 0:a:m:title:"$DESKTOP_TRACK_NAME" -c:a copy "$AUDIO_GAME_OUTPUT" \
+  -map 0:a:m:title:"$MIC_TRACK_NAME" -c:a pcm_s16le "$MIC_OUTPUT"
+
+echo ""
+echo "Processing: $FULLPATH"
+echo "Output:"
+echo " Video : $VIDEO_GAME_OUTPUT"
+echo " Game  : $AUDIO_GAME_OUTPUT"
+echo " Mic   : $MIC_OUTPUT"
