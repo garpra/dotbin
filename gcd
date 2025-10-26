@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+set -e
+
+usage() {
+  echo "Usage: $(basename "$0") <date>"
+  exit 1
+}
+
+if [[ $# -eq 0 ]]; then
+  usage
+fi
+
+DATE_INPUT=$1
+
+if ! date -d "$DATE_INPUT" >/dev/null 2>&1; then
+  echo "Invalid date format"
+  exit 1
+fi
+
+if ! git rev-parse HEAD >/dev/null 2>&1; then
+  echo "No commit to amend"
+  exit 1
+fi
+
+GIT_COMMITTER_DATE="$DATE_INPUT" \
+  GIT_AUTHOR_DATE="$DATE_INPUT" \
+  git commit --amend --date="$DATE_INPUT" --no-edit
