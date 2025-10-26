@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+OUTPUT=""
+INPUTS=()
+
+usage() {
+  echo "Usage: $(basename "$0") -o <output.mp4> <input1.mp4> [input2.mp4 ...]"
+  echo ""
+  echo "Options:"
+  echo "  -o    Output file path (required)"
+  echo "  -h    Show this help message"
+  exit 1
+}
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  -o)
+    if [[ -z "${2:-}" ]]; then
+      echo "Error: -o requires an output file argument"
+      exit 1
+    fi
+    OUTPUT="$2"
+    shift 2
+    ;;
+  -h | --help)
+    usage
+    ;;
+  -*)
+    echo "Error: Unknown option '$1'"
+    usage
+    ;;
+  *)
+    INPUTS+=("$1")
+    shift
+    ;;
+  esac
+done
+
+# Validate arguments
+if [[ -z "$OUTPUT" ]]; then
+  echo "Error: Output file (-o) is required"
+  usage
+fi
+
+if [[ ${#INPUTS[@]} -lt 1 ]]; then
+  echo "Error: At least one input file is required"
+  usage
+fi
+
+if [[ ${#INPUTS[@]} -lt 2 ]]; then
+  echo "Warning: Only one input file provided. Consider providing at least two."
+fi
+
+# Resolve and validate input file paths (realpath)
+VALID_INPUTS=()
+for input in "${INPUTS[@]}"; do
+  if [[ ! -f "$input" ]]; then
+    echo "Error: Input file not found: $input"
+    exit 1
+  fi
+  real_path="$(realpath "$input")"
+  VALID_INPUTS+=("$real_path")
+done
+
+# Resolve output path
+OUTPUT_DIR="$(dirname "$OUTPUT")"
+if [[ ! -d "$OUTPUT_DIR" ]]; then
+  echo "Error: Output directory does not exist: $OUTPUT_DIR"
+  exit 1
+fi
+OUTPUT_REAL="$(realpath -m "$OUTPUT")"
+
+# Create temporary file list in /tmp
+FILE_LIST="$(mktemp /tmp/merge-videos-filelist.XXXXXX.txt)"
+trap 'rm -f "$FILE_LIST"' EXIT
+
+# Build the file list for FFmpeg concat demuxer
+for input in "${VALID_INPUTS[@]}"; do
+  echo "file '$input'" >>"$FILE_LIST"
+done
+
+echo "Merging ${#VALID_INPUTS[@]} video(s)..."
+echo "File list: $FILE_LIST"
+echo "Output: $OUTPUT_REAL"
+
+# Execute FFmpeg concat
+ffmpeg -f concat -safe 0 -i "$FILE_LIST" -c copy "$OUTPUT_REAL"
+
+echo "Done! Output saved to: $OUTPUT_REAL"
