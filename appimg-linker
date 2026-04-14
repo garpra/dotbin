@@ -10,6 +10,8 @@ mkdir -p "$DESKTOP_DIR" "$ICON_DIR"
 read -p "Name App : " APP_NAME
 read -e -p "Path Appimage : " APP_PATH
 
+APP_PATH=$(realpath "$APP_PATH")
+
 if [[ ! -f "$APP_PATH" ]]; then
   echo "App Path not exist"
   exit 1
